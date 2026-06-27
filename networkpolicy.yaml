@@ -1,0 +1,80 @@
+# Запрещаем весь входящий трафик по умолчанию
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: deny-all
+  namespace: app
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+---
+# Разрешаем frontend исходящий трафик к backend
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: frontend-to-backend
+  namespace: app
+spec:
+  podSelector:
+    matchLabels:
+      app: frontend
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app: backend
+    ports:
+    - port: 80
+---
+# Разрешаем backend принимать трафик от frontend
+# и отправлять трафик к cache
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: backend-policy
+  namespace: app
+spec:
+  podSelector:
+    matchLabels:
+      app: backend
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: frontend
+    ports:
+    - port: 80
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app: cache
+    ports:
+    - port: 80
+---
+# Разрешаем cache принимать трафик от backend
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: cache-policy
+  namespace: app
+spec:
+  podSelector:
+    matchLabels:
+      app: cache
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: backend
+    ports:
+    - port: 80
